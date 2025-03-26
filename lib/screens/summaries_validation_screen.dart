@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:smartpath_app/core/pallet.dart';
 import 'package:smartpath_app/screens/gaps_validation_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:smartpath_app/screens/low_complexity_generator.dart';
 import 'image_generation.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -35,10 +36,16 @@ class SummariesValidationScreen extends StatefulWidget {
 class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
   int _selectedIndex = 1;
   int _currentSummaryIndex = 0;
-  int _currentImageIndex = 0;
   final List<TextEditingController> summaries = [];
+  
   late ImageGenerator imageGenerator;
+  int _currentImageIndex = 0;
   bool isGenerating = false;
+
+  late ComplexityModifier complexityModifier;
+  int _currentLowSummaryIndex = 0;
+  final List<TextEditingController> lowComplexSummaries = [];
+  bool lowSummariesLoaded = false;
 
   @override
   void initState(){
@@ -50,11 +57,19 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
       summary3: widget.summary3,
     );
 
+    complexityModifier = ComplexityModifier(
+      docId: widget.docId, 
+      summary1: widget.summary1, 
+      summary2: widget.summary2, 
+      summary3: widget.summary3
+    );
+
     summaries.addAll([
       TextEditingController(text: widget.summary1),
       TextEditingController(text: widget.summary2),
       TextEditingController(text: widget.summary3)
     ]);
+
   }
 
   @override
@@ -169,11 +184,73 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
           buildBackground3(),
           if(_selectedIndex == 1) buildEditableContent(),
           if(_selectedIndex == 2) buildImages(),
+          if(_selectedIndex == 3) buildEditableLowComplexityContent(),
           buildNavigationButtons()
         ],
       ),
       bottomNavigationBar: _buildCustomBottomBar(),
     );
+  }
+
+  buildEditableLowComplexityContent(){
+    if (!lowSummariesLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Positioned(
+      top: 200,
+      left: 15,
+      right: 15,
+      bottom: 80,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: TextField(
+          controller: lowComplexSummaries[_currentLowSummaryIndex],
+          maxLines: null,
+          textAlign: TextAlign.center,
+          textAlignVertical: TextAlignVertical.top,
+          style: TextStyle(
+            fontSize: 20,
+            height: 1.7,
+            color: Colors.black87,
+          ),
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> saveLowChanges() async {
+    try{
+      final currentLowSummaryName = 'summary${_currentLowSummaryIndex + 1}';
+
+      await FirebaseFirestore.instance
+        .collection('lowComplexitySummaries')
+        .doc(widget.docId)
+        .update({currentLowSummaryName: lowComplexSummaries[_currentLowSummaryIndex].text});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Canvis al resum guardats correctament!'))
+      );
+    } catch (e){
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al guardar els canvis'))
+      );
+    }
+  }
+
+  Future<void> navigateLowSummary(int direction) async {
+    await saveLowChanges();
+    if(mounted) {
+      setState(() => _currentLowSummaryIndex += direction);
+    }
   }
 
   Widget buildEditableContent() {
@@ -231,50 +308,102 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
 
   Widget buildNavigationButtons(){
     if (_selectedIndex == 2) return const SizedBox.shrink();
-    return Positioned(
-      bottom: 10,
-      left: 10,
-      right: 10,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            ElevatedButton.icon(
-              onPressed: _currentSummaryIndex > 0 ? () => navigateSummary(-1):null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+
+    if (_selectedIndex == 1){
+      return Positioned(
+        bottom: 10,
+        left: 10,
+        right: 10,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _currentSummaryIndex > 0 ? () => navigateSummary(-1):null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                icon: const Icon(Icons.arrow_back, color: Colors.white,),
+                label: const Text('Anterior', style: TextStyle(color: Colors.white)),
               ),
-              icon: const Icon(Icons.arrow_back, color: Colors.white,),
-              label: const Text('Anterior', style: TextStyle(color: Colors.white)),
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                if (_currentSummaryIndex < 2){
-                  await navigateSummary(1);
-                } else{
-                  await saveChanges();
-                  completedValidationAlert();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-              ),
-              icon: const Icon(Icons.arrow_forward, color: Colors.white),
-              label: const Text('Següent', style: TextStyle(color: Colors.white),))
-          ],
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (_currentSummaryIndex < 2){
+                    await navigateSummary(1);
+                  } else{
+                    await saveChanges();
+                    completedValidationAlert();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                ),
+                icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                label: const Text('Següent', style: TextStyle(color: Colors.white),)
+              )
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
+    if ( _selectedIndex == 3){
+      return Positioned(
+        bottom: 10,
+        left: 10,
+        right: 10,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _currentLowSummaryIndex > 0 ? () => navigateLowSummary(-1):null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                icon: const Icon(Icons.arrow_back, color: Colors.white,),
+                label: const Text('Anterior', style: TextStyle(color: Colors.white)),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (_currentLowSummaryIndex < 2){
+                    await navigateLowSummary(1);
+                  }else{
+                    await saveLowChanges();
+                    completedValidationAlert();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                ),
+                icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                label: const Text('Següent', style: TextStyle(color: Colors.white),)
+              )
+            ],
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
 
@@ -308,7 +437,7 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
           unselectedItemColor: Colors.white,
           backgroundColor: const Color.fromARGB(125, 117, 0, 128),
           elevation: 0,
-          onTap: (index) {
+          onTap: (index) async {
             if (index == 0) {
               exitConfirmationAlert();
             }
@@ -328,6 +457,30 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
             }
             if (index == 3){
               setState(() => _selectedIndex = index);
+              if (!lowSummariesLoaded) {
+                try {
+                  final lowSummaries = await complexityModifier.loadSummaries();
+                  if (lowSummaries.isEmpty){
+                    await complexityModifier.saveSummary();
+                    final newSummaries = await complexityModifier.loadSummaries();
+                    lowComplexSummaries.addAll(
+                      newSummaries.map((s) => TextEditingController(text: s)).toList()
+                    );
+                  } else {
+                    lowComplexSummaries.addAll(
+                      lowSummaries.map((s) => TextEditingController(text: s)).toList()
+                    );
+                  }
+                  setState(() {
+                    lowSummariesLoaded = true;
+                    
+                  });
+                } catch (e){
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error carregant resums simplificats: ${e.toString()}'))
+                  );
+                }
+              }
             }
             if (index == 4){
               setState(() => _selectedIndex = index);

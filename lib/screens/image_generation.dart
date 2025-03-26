@@ -26,16 +26,19 @@ class ImageGenerator {
         generateImage(summary2),
         generateImage(summary3),
       ]);
+      
+      // Convertir URL en base64, emmagatzemar en base de dades
+      // Per a la visualitzacio convertir base64 en URL i mostrar
 
       await FirebaseFirestore.instance.collection('images').doc(docId).set({
         'image1_summary1': images[0],
         'image1_summary2': images[1],
         'image1_summary3': images[2],
-        'context': 'Imatge generada des del resum: $docId',
+        'context': 'Imatges generades des del document: $docId',
       });
       
     } catch (e) {
-      print('Error guardando imagen: $e');
+      print('Error guardant imatges: $e');
       rethrow;
     }
   }
@@ -89,19 +92,7 @@ class ImageGenerator {
   }
 
   Future<String> makeDeepSeekApiRequest(String summary) async {
-    String prompt = /*"""
-      Necesito que analizes el siguiente resumen y generes un prompt en inglés breve pero conciso (No mas de 5 lineas, por tanto evita contenido innecesario),
-      para generar imagenes sobre el resumen y así poder ayudar a estudiantes de primero de la ESO a
-      estudiar y asimilar los conceptos que se explican en el resumen.
-
-      Evita añadir palabras para identificar que lo que estas escribiendo es un prompt,
-      simplemente muestra el texto como se lo pasarias tal cual a una IA de generacion de imagenes.
-      
-      Además en el prompt asegura que la imagen que se vaya a crear sean sin texto, es decir, que no hayan labels en la imagen.
-
-      Finalmente, como las imágenes se tienen que mostrar en un movil me gustaria que fuesen en formato vertical, con fondo blanco y sin texto!
-      $summary
-    """*/
+    String prompt = 
     """
       Analyze this summary and create an English image generation prompt that:
       - Is concise (max 5 lines)

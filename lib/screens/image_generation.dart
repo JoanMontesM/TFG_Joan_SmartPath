@@ -29,11 +29,12 @@ class ImageGenerator {
       
       // Convertir URL en base64, emmagatzemar en base de dades
       // Per a la visualitzacio convertir base64 en URL i mostrar
+      final encodedImages = images.map((url) => base64Encode(utf8.encode(url))).toList();
 
       await FirebaseFirestore.instance.collection('images').doc(docId).set({
-        'image1_summary1': images[0],
-        'image1_summary2': images[1],
-        'image1_summary3': images[2],
+        'image1_summary1': encodedImages[0],
+        'image1_summary2': encodedImages[1],
+        'image1_summary3': encodedImages[2],
         'context': 'Imatges generades des del document: $docId',
       });
       
@@ -80,15 +81,15 @@ class ImageGenerator {
 
   Future<List<String>> loadImage() async {
     final doc = await FirebaseFirestore.instance.collection('images').doc(docId).get();
-    if (doc.exists) {
-      return [
-        doc['image1_summary1'],
-        doc['image1_summary2'],
-        doc['image1_summary3'],
-      ];
-    } else{
-      return [];
-    }
+  if (doc.exists) {
+    return [
+      utf8.decode(base64Decode(doc['image1_summary1'])),
+      utf8.decode(base64Decode(doc['image1_summary2'])),
+      utf8.decode(base64Decode(doc['image1_summary3'])),
+    ];
+  } else {
+    return [];
+  }
   }
 
   Future<String> makeDeepSeekApiRequest(String summary) async {
@@ -124,6 +125,7 @@ class ImageGenerator {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
+        print(data);
         if (data['choices'] != null && data['choices'].isNotEmpty) {
           return data['choices'][0]['message']['content'];
         }

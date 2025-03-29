@@ -76,6 +76,7 @@ flutter:
   - images/Avorrit.png
   - images/Confus.png
   - .env
+  - images/Molt content.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

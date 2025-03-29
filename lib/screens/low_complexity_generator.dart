@@ -41,11 +41,12 @@ class ComplexityModifier {
 
   Future<String> generateLowCmplexSummary(String summary) async {
     String prompt = """
-       Si us plau, simplifica la complexitat del següent resum perquè els 
-       estudiants el puguin entendre fàcilment. Mantingues les idees clau, 
-       però utilitza un llenguatge clar i senzill sense allargar gaire el text.
-       Escriu el nou resum en català i no afegeixis cap altre text addicional.
-
+      Si us plau, simplifica la complexitat del següent resum perquè els 
+      estudiants el puguin entendre fàcilment. Mantingues les idees clau, 
+      però utilitza un llenguatge clar i senzill sense allargar gaire el text.
+      Escriu el nou resum en català, no afegeixis cap altre text addicional, ni 
+      cap titol per als resums, es a dir, simplement el text del resum.
+      No afegeixis "Resum simplificat:" al inici. No afegeixis res.
       Resum original:
       $summary
     """;

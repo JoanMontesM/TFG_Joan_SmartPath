@@ -1,65 +1,75 @@
 import 'package:flutter/material.dart';
-import 'package:smartpath_app/core/pallet.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smartpath_app/core/pallet.dart';
 import 'package:smartpath_app/screens/teacher_home_screen.dart';
-import 'package:smartpath_app/screens/test_generator.dart';
-import 'package:smartpath_app/screens/multiplechoice_validation_screen.dart';
 
-
-
-class GapsValidationScreen extends StatefulWidget {
+class MultiplechoiceValidationScreen extends StatefulWidget {
   final String docId;
-  final Map<String, dynamic> summariesData;
 
-  const GapsValidationScreen({
-    super.key,
-    required this.docId,
-    required this.summariesData,
-  });
+  const MultiplechoiceValidationScreen({required this.docId});
 
   @override
-  State<GapsValidationScreen> createState() => _GapsValidationScreenState();
+  State<MultiplechoiceValidationScreen> createState() => _MultiplechoiceValidationScreenState();
 }
 
-class _GapsValidationScreenState extends State<GapsValidationScreen> {
-  int _currentSummaryIndex = 0;
-  late Map<String, dynamic> summariesWithGapsData;
+class _MultiplechoiceValidationScreenState extends State<MultiplechoiceValidationScreen> {
+  int _currentQuestionIndex = 0;
+  Map<String, dynamic> _questionsData = {};
 
   @override
   void initState() {
     super.initState();
-    summariesWithGapsData = Map.from(widget.summariesData);
+    loadQuestions();
   }
 
-  void navigateSummary(int direction) {
-    if (_currentSummaryIndex + direction >= 0 && _currentSummaryIndex + direction < 3){
-      setState(() => _currentSummaryIndex += direction);
-      updateFirestore();
+  Future<void> loadQuestions() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('multipleChoice')
+        .doc(widget.docId)
+        .get();
+
+    if (doc.exists) {
+      setState(() => _questionsData = doc.data()!);
     }
   }
 
-  Future<void> updateFirestore() async {
-    final doc = FirebaseFirestore.instance.collection('summariesWithGaps').doc(widget.docId);
-    await doc.update({'gappedSummaries': summariesWithGapsData});
+  void navigateQuestion(int direction) {
+    final newIndex = _currentQuestionIndex + direction;
+    if (newIndex >= 0 && newIndex < 5) {
+      setState(() => _currentQuestionIndex = newIndex);
+      saveChanges();
+    }
   }
 
-  void updateOption(String summaryKey,int gapIndex,int optionIndex,String newValue){
+  void updateQuestion(String newText) {
     setState(() {
-      final gap = summariesWithGapsData[summaryKey]['gaps'][gapIndex];
-      final options = List<String>.from(gap['options']);
-      final oldValue = options[optionIndex];
+      _questionsData['question${_currentQuestionIndex + 1}']['question'] = newText;
+    });
+  }
 
-      options[optionIndex] = newValue;
-      gap['options'] = options;
-
-      if (gap['correctAnswer'] == oldValue){
-        gap['correctAnswer'] = newValue;
+  void updateOption(int optionIndex, String newValue) {
+    setState(() {
+      final questionKey = 'question${_currentQuestionIndex + 1}';
+      final question = _questionsData[questionKey];
+      question['options'][optionIndex] = newValue;
+      
+      if (question['correctAnswer'] == question['options'][optionIndex]) {
+        question['correctAnswer'] = newValue;
       }
     });
   }
 
+  Future<void> saveChanges() async {
+    await FirebaseFirestore.instance
+        .collection('multipleChoice')
+        .doc(widget.docId)
+        .update(_questionsData);
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_questionsData.isEmpty) return const Center(child: CircularProgressIndicator());
+
     return Scaffold(
       body: Stack(
         children: [
@@ -73,7 +83,7 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
             bottom: 80,
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              child: buildSummaryPage(_currentSummaryIndex),
+              child: buildQuestionPage(),
             ),
           ),
           buildNavigationButtons(),
@@ -83,88 +93,59 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
     );
   }
 
-  Widget buildSummaryPage(int index){
-  final currentSummaryKey = 'summary${index + 1}';
-  final currentSummary = summariesWithGapsData[currentSummaryKey];
-  final text = currentSummary['text'] as String;
-  final gaps = currentSummary['gaps'] as List<dynamic>;
+  Widget buildQuestionPage() {
+    final questionKey = 'question${_currentQuestionIndex + 1}';
+    final currentQuestion = _questionsData[questionKey];
+    final options = (currentQuestion['options'] as List<dynamic>).cast<String>();
 
-  return Column(
-    children: [
-      Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 20,
-          height: 1.7,
-          color: Colors.black87,
+    return Column(
+      children: [
+        TextFormField(
+          key: Key('question_$_currentQuestionIndex'),
+          initialValue: currentQuestion['question'],
+          onChanged: updateQuestion,
+          style: const TextStyle(fontSize: 20, height: 1.7, color: Colors.black87),
+          maxLines: 3,
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+          ),
         ),
-      ),
-      const SizedBox(height: 30),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: gaps.asMap().entries.map<Widget>((gapEntry) {
-            final gapIndex = gapEntry.key;
-            final gapData = gapEntry.value as Map<String, dynamic>;
-            final gapId = gapData['gapId'];
-            final options = (gapData['options'] as List<dynamic>).cast<String>();
+        const SizedBox(height: 30),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: options.asMap().entries.map<Widget>((entry) {
+              final index = entry.key;
+              final optionLetter = String.fromCharCode('A'.codeUnitAt(0) + index);
+              final isCorrect = optionLetter == currentQuestion['correctAnswer'];
 
-            return Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '[$gapId]:',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: options.asMap().entries.map<Widget>((optionEntry) {
-                      final optionIndex = optionEntry.key;
-                      final option = optionEntry.value;
-                      final isCorrect = option == gapData['correctAnswer'];
-
-                      return SizedBox(
-                        width: 150,
-                        child: TextFormField(
-                          key: Key('${currentSummaryKey}_${gapIndex}_$optionIndex'),
-                          initialValue: option,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(),
-                            filled: true,
-                            fillColor: isCorrect 
-                                ? const Color.fromARGB(81, 76, 175, 79)
-                                : Colors.grey[200],
-                          ),
-                          onChanged: (newValue) => updateOption(
-                            currentSummaryKey,
-                            gapIndex,
-                            optionIndex,
-                            newValue,
-                          ),
+              return Container(
+                margin: const EdgeInsets.only(bottom: 15),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        key: Key('option_${_currentQuestionIndex}_$index'),
+                        initialValue: entry.value,
+                        onChanged: (value) => updateOption(index, value),
+                        decoration: InputDecoration(
+                          border: const OutlineInputBorder(),
+                          filled: true,
+                          fillColor: isCorrect ? const Color.fromARGB(81, 76, 175, 79) : Colors.grey[200],
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
   }
-  
+
   Widget buildNavigationButtons() {
     return Positioned(
       bottom: 10,
@@ -180,7 +161,7 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             ElevatedButton.icon(
-              onPressed: _currentSummaryIndex > 0 ? () => navigateSummary(-1):null,
+              onPressed: _currentQuestionIndex > 0 ? () => navigateQuestion(-1) : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
@@ -190,50 +171,26 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
               label: const Text('Anterior', style: TextStyle(color: Colors.white)),
             ),
             ElevatedButton.icon(
-              onPressed: () async {
-                if (_currentSummaryIndex < 2){
-                  navigateSummary(1);
-                } else{
-                  final continuar = await completedValidationGapsAlert();
-                  if(continuar == true){
-                    final testGenerator = TestGenerator(docId: widget.docId, summary1: widget.summariesData['summary1']['text'], summary2: widget.summariesData['summary2']['text'], summary3: widget.summariesData['summary3']['text']);
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false, 
-                      builder: (context) => const Center(
-                        child: CircularProgressIndicator(),
-                      )
-                    );
-
-                    try {
-                      await testGenerator.saveMultipleChoice();
-                      Navigator.pop(context);
-                      Navigator.pushReplacement(
-                        context, 
-                        MaterialPageRoute(
-                          builder: (context) => MultiplechoiceValidationScreen(
-                            docId: widget.docId,
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: ${e.toString()}')),
-                      );
-                    }
-                  }
+              onPressed: () {
+                if (_currentQuestionIndex < 4) {
+                  navigateQuestion(1);
+                } else {
+                  handleFinalize();
                 }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
-                disabledBackgroundColor: primaryColor,
-                disabledForegroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-              icon: const Icon(Icons.arrow_forward, color: Colors.white),
-              label: const Text('Següent', style: TextStyle(color: Colors.white)),
+              icon: Icon(
+                _currentQuestionIndex == 4 ? Icons.done : Icons.arrow_forward,
+                color: Colors.white,
+              ),
+              label: Text(
+                _currentQuestionIndex == 4 ? 'Finalitzar' : 'Següent',
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -241,8 +198,15 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
     );
   }
 
-  Future<bool?> completedValidationGapsAlert() async {
-    return showDialog<bool?>(
+  void handleFinalize() async {
+    await saveChanges();
+    if (mounted) {
+      showCompletionDialog();
+    }
+  }
+
+  Future<void> showCompletionDialog() async {
+    await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -256,18 +220,19 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                "Validació dels exercicis amb buits completada!",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                  "Validació completada!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
                 Image.asset(
-                  'images/smartpath_brand.png',
+                  'images/Molt content.png',
                   height: 270,
                   width: 270,
                 ),
+                const SizedBox(height: 10),
                 const Text(
-                  "Tots els exercicis amb buits han sigut validats correctament! Vols continuar amb la validació dels exercicis tipus test?",
+                  "La validació s'ha realitzat correctament. Vols sortir al menú principal?",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 20),
                 ),
@@ -282,11 +247,11 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical:10),
-                minimumSize: const Size(100, 50)
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                minimumSize: const Size(100, 50),
               ),
-              child: const Text("Torna"),
-              onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+              child: const Text("Tornar"),
+              onPressed: () => Navigator.of(context).pop(),
             ),
             const SizedBox(width: 10),
             TextButton(
@@ -295,16 +260,35 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical:10),
-                minimumSize: const Size(100, 50)
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                minimumSize: const Size(100, 50),
               ),
-              child: const Text("Continua"),
-              onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
+              child: const Text("Sortir"),
+              onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => TeacherHomeScreen())),
             ),
           ],
-        );      
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> loadMultipleChoice() async {
+    final doc = await FirebaseFirestore.instance.collection('multipleChoice').doc(widget.docId).get();
+    if (!doc.exists) return [];
+
+    List<Map<String, dynamic>> questions = [];
+
+    for (int i = 1; i <= 5; i++){
+      final questionKey = 'question$i';
+      if (doc.data()!.containsKey(questionKey)) {
+        questions.add({
+          'question': doc[questionKey]['question'],
+          'options': List<String>.from(doc[questionKey]['options']),
+          'correctAnswer': doc[questionKey]['correctAnswer'],
+        });
       }
-    ); 
+    }
+    return questions;
   }
 
   Widget _buildCustomBottomBar() {
@@ -340,7 +324,7 @@ class _GapsValidationScreenState extends State<GapsValidationScreen> {
   );
 }
 
-  Future<void> exitConfirmationAlert() async {
+Future<void> exitConfirmationAlert() async {
   final bool? exit = await showDialog<bool>(
     context: context,
     builder: (BuildContext context) {

@@ -100,7 +100,7 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
     $text
 
     L'exemple de format requerit de resposta és:
-    "gappedText": (Text amb els gaps)
+    "text": (Text amb els gaps)
     "gaps": [
       {
         "gapId": "gap1",
@@ -148,12 +148,12 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
 
         final parsed = jsonDecode(cleanedResponse) as Map<String, dynamic>;
         
-        if (!parsed.containsKey('gappedText') || !parsed.containsKey('gaps') || parsed['gaps'] is! List) {
+        if (!parsed.containsKey('text') || !parsed.containsKey('gaps') || parsed['gaps'] is! List) {
             throw Exception('Estructura de gaps inválida en la respuesta');
         }
 
         return {
-          'gappedText': parsed['gappedText'] as String,
+          'text': parsed['text'] as String,
           'gaps': (parsed['gaps'] as List<dynamic>)
         };
 
@@ -572,11 +572,11 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
 
   if (proceed == true) {
     try {
-      final docSnapshot = await FirebaseFirestore.instance
+      final docRef = await FirebaseFirestore.instance
           .collection('summariesWithGaps')
-          .doc(widget.docId)
-          .get();
+          .doc(widget.docId);
 
+      final docSnapshot = await docRef.get();
       bool generateNew = true;
 
       if (docSnapshot.exists) {
@@ -649,60 +649,54 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
         ];
 
         final results = await Future.wait(gapSummaries);
-        final summaryWithGaps1 = results[0];
-        final summaryWithGaps2 = results[1];
-        final summaryWithGaps3 = results[2];
+        
 
-        await saveSummariesWithGaps(
-          docId: widget.docId,
-          name: widget.name,
-          summary1: summaryWithGaps1,
-          summary2: summaryWithGaps2,
-          summary3: summaryWithGaps3,
-        );
+        final summariesData = {
+          'summary1': {
+            'text': results[0]['text'],
+            'gaps': results[0]['gaps'],
+          },
+          'summary2': {
+            'text': results[1]['text'],
+            'gaps': results[1]['gaps'],
+          },
+          'summary3': {
+            'text': results[2]['text'],
+            'gaps': results[2]['gaps'],
+          },
+        };
+
+        await docRef.set({
+          'docId': widget.docId,
+          'name': widget.name,
+          'gappedSummaries': summariesData,
+          'isValidated': false,
+        }, SetOptions(merge:true));
 
         if (context.mounted) Navigator.of(context).pop();
 
         if (context.mounted) {
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => GapsValidationScreen(
                 docId: widget.docId,
-                gappedSummaries: {
-                  'summary1': summaryWithGaps1['gappedText'],
-                  'summary2': summaryWithGaps2['gappedText'],
-                  'summary3': summaryWithGaps3['gappedText'],
-                },
-                gapsData: {
-                  'summary1': summaryWithGaps1['gaps'],
-                  'summary2': summaryWithGaps2['gaps'],
-                  'summary3': summaryWithGaps3['gaps'],
-                },
+                summariesData: summariesData,
               ),
             ),
           );
         }
       } else {
         final existingData = docSnapshot.data()!;
-        final gappedSummaries = existingData['gappedSummaries'];
+        final summariesData = existingData['gappedSummaries'] as Map<String, dynamic>;
 
         if (context.mounted) {
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => GapsValidationScreen(
                 docId: widget.docId,
-                gappedSummaries: {
-                  'summary1': gappedSummaries['summary1']['text'],
-                  'summary2': gappedSummaries['summary2']['text'],
-                  'summary3': gappedSummaries['summary3']['text'],
-                },
-                gapsData: {
-                  'summary1': gappedSummaries['summary1']['gaps'],
-                  'summary2': gappedSummaries['summary2']['gaps'],
-                  'summary3': gappedSummaries['summary3']['gaps'],
-                },
+                summariesData: summariesData,
               ),
             ),
           );
@@ -712,7 +706,7 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
       if (context.mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
+          SnackBar(content: Text("Error: ${e.toString()}")),
         );
       }
     }
@@ -989,36 +983,6 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
         }
       }
-    }
-  }
-
-  Future<void> saveSummariesWithGaps({required String docId,required String name,required Map<String, dynamic> summary1,required Map<String, dynamic> summary2,required Map<String, dynamic> summary3,}) async{
-    try{
-      final summariesWithGapsData = {
-        'name': name,
-        'docId': docId,
-        'isValidated': false,
-        'gappedSummaries':{
-          'summary1': {
-            'text': summary1['gappedText'],
-            'gaps': summary1['gaps'],
-          },
-          'summary2': {
-            'text': summary2['gappedText'],
-            'gaps': summary2['gaps'],
-          },
-          'summary3': {
-            'text': summary3['gappedText'],
-            'gaps': summary3['gaps'],
-          }
-        },
-      };
-      await FirebaseFirestore.instance.collection('summariesWithGaps').doc(docId).set(summariesWithGapsData);
-
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contingut guardat correctament!')));
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error en guardant els resums amb buits')));
     }
   }
 

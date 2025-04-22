@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+
 
 
 class ImageGenerator {
@@ -19,31 +22,37 @@ class ImageGenerator {
 
   });
 
-  Future<void> saveImage() async {
-    try {
-      final List<String> images = await Future.wait([
-        generateImage(summary1),
-        generateImage(summary2),
-        generateImage(summary3),
-      ]);
-      
-      // Convertir URL en base64, emmagatzemar en base de dades
-      // Per a la visualitzacio convertir base64 en URL i mostrar
-      final encodedImages = images.map((url) => base64Encode(utf8.encode(url))).toList();
+  Future<void> saveImage(int summaryIndex) async {
+    summaryIndex = summaryIndex + 1;
+    String summary = '';
 
-      await FirebaseFirestore.instance.collection('images').doc(docId).set({
-        'image1_summary1': encodedImages[0],
-        'image1_summary2': encodedImages[1],
-        'image1_summary3': encodedImages[2],
-        'context': 'Imatges generades des del document: $docId',
-      });
+    if (summaryIndex == 1){
+      summary = summary1;
+    } else if (summaryIndex == 2) {
+      summary = summary2;
+    } else if (summaryIndex == 3) {
+        summary = summary3;
+    }
+
+    try {
+      final image = await generateImage(summary);
+      final response = await http.get(Uri.parse(image));
+      
+      if(response.statusCode == 200){
+        Uint8List imageBytes = response.bodyBytes;
+        final ref = firebase_storage.FirebaseStorage.instance.ref().child('generated_images').child(docId).child('image_summary$summaryIndex.png');
+
+        await ref.putData(imageBytes, firebase_storage.SettableMetadata(contentType: 'image/png'));
+        final downloadUrl = await ref.getDownloadURL();
+        
+        await FirebaseFirestore.instance.collection('images').doc(docId).set({'image1_summary$summaryIndex': downloadUrl, 'context': 'Imatges generades des del document: $docId'}, SetOptions(merge:true));
+      }
       
     } catch (e) {
       print('Error guardant imatges: $e');
       rethrow;
     }
   }
-
 
    Future<String> generateImage(String summary) async {
     final String _apiUrl = 'https://api.replicate.com/v1/models/google/imagen-3/predictions';
@@ -81,31 +90,30 @@ class ImageGenerator {
 
   Future<List<String>> loadImage() async {
     final doc = await FirebaseFirestore.instance.collection('images').doc(docId).get();
-  if (doc.exists) {
-    return [
-      utf8.decode(base64Decode(doc['image1_summary1'])),
-      utf8.decode(base64Decode(doc['image1_summary2'])),
-      utf8.decode(base64Decode(doc['image1_summary3'])),
-    ];
-  } else {
-    return [];
-  }
+    if (doc.exists) {
+      return [
+        doc['image1_summary1'] as String,
+        doc['image1_summary2'] as String,
+        doc['image1_summary3'] as String,
+      ];
+    } else {
+      return [];
+    }
   }
 
   Future<String> makeDeepSeekApiRequest(String summary) async {
     String prompt = 
     """
-      Analyze this summary and create an English image generation prompt that:
-      - Is concise (max 5 lines)
-      - Contains no meta-commentary or explanations
-      - Specifies vertical composition
-      - Uses white background
-      - Excludes all text/labels
-      - Focuses on key educational elements
-  
-      Summary: $summary
-  
-      Respond ONLY with the raw image prompt to use, nothing else.
+      Analyze the provided text and generate an English image prompt for Imagen-3 (Replicate) that:  
+      1. **Contains no text/labels** - Concepts must be visually self-explanatory.  
+      2. **Targets high school students** - Use vibrant colors, simple shapes, and clear visuals.  
+      3. **Suggested style** - Low levels high school book ilustration.  
+      4. **Focus** - Visually represent the text's core concept in an intuitive way.   
+
+      Text to analyze:  
+      $summary 
+
+      Respond ONLY with the Replicate-ready prompt.  
     """;
 
     final apiKey = dotenv.env['DEEPSEEK_KEY']!;

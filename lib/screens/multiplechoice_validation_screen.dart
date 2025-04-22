@@ -71,6 +71,7 @@ class _MultiplechoiceValidationScreenState extends State<MultiplechoiceValidatio
     if (_questionsData.isEmpty) return const Center(child: CircularProgressIndicator());
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           buildBackground(),

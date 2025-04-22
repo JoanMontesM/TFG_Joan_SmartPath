@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:smartpath_app/core/pallet.dart';
+import 'package:smartpath_app/screens/access_reports_screen.dart';
 import 'package:smartpath_app/screens/add_content.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smartpath_app/screens/summaries_validation_screen.dart';
-
-
-
 
 class TeacherHomeScreen extends StatefulWidget {
   const TeacherHomeScreen({super.key});
@@ -19,12 +17,14 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   List<Map<String, dynamic>> contentItems = [];
   int _selectedIndex = 0;
   String _selectedAmbit = "Àmbit lingüístic";
+  List<Map<String, dynamic>> students = [];
 
   @override
 
   void initState() {
     super.initState();
-    loadContentFromFirebase(); // Cargar contenido al iniciar
+    loadContentFromFirebase();
+    loadStudents();
   }
 
   Future<void> loadContentFromFirebase() async {
@@ -56,6 +56,39 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       );
     }
   }
+
+  Future<void> loadStudents() async {
+  try {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'student')
+        .get();
+
+    List<Map<String, dynamic>> loadedStudents = [];
+
+    for (var doc in querySnapshot.docs) {
+      loadedStudents.add({
+        'name': doc.get('name') ?? '',
+        'uid': doc.id,
+        'group': doc.get('group') ?? ''
+      });
+    }
+
+    if (mounted) {
+      setState(() {
+        students = loadedStudents;
+      });
+    }
+    print(loadedStudents);
+
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al cargar estudiantes')),
+      );
+    }
+  }
+}
 
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,8 +132,17 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           onTap: (index) {
             if (index == 0) {
               setState(() => _selectedIndex = index);
-            } else {
+            }
+            else if (index == 1){
               setState(() => _selectedIndex = index);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AccessReportsScreen(
+                    students: students,
+                  ),
+                ),
+              );
             }
           },
           type: BottomNavigationBarType.fixed,

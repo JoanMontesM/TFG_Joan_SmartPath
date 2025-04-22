@@ -1,13 +1,15 @@
+import 'dart:typed_data';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:smartpath_app/core/pallet.dart';
+import 'package:smartpath_app/screens/TTS_generator.dart';
 import 'package:smartpath_app/screens/gaps_validation_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:smartpath_app/screens/low_complexity_generator.dart';
 import 'image_generation.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 
 class SummariesValidationScreen extends StatefulWidget {
   final String docId;
@@ -42,6 +44,12 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
   int _currentImageIndex = 0;
   bool isGenerating = false;
 
+  late TTSGenerator ttsGenerator;
+  bool ttsIsGenerating = false;
+  final AudioPlayer audioPlayer = AudioPlayer();
+  List<Uint8List>? ttsBytes; 
+
+
   late ComplexityModifier complexityModifier;
   int _currentLowSummaryIndex = 0;
   final List<TextEditingController> lowComplexSummaries = [];
@@ -57,6 +65,13 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
       summary3: widget.summary3,
     );
 
+    ttsGenerator = TTSGenerator(
+      docId: widget.docId, 
+      summary1: widget.summary1, 
+      summary2: widget.summary2, 
+      summary3: widget.summary3,
+    );
+
     complexityModifier = ComplexityModifier(
       docId: widget.docId, 
       summary1: widget.summary1, 
@@ -69,12 +84,12 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
       TextEditingController(text: widget.summary2),
       TextEditingController(text: widget.summary3)
     ]);
-
   }
 
   @override
   void dispose(){
     summaries.forEach((summary) => summary.dispose());
+    audioPlayer.dispose();
     super.dispose();
   }
 
@@ -174,9 +189,36 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
     }
   }
 
+  Future<void> TTSPlayback() async {
+    if (ttsIsGenerating) return;
+    try {
+      setState(() => ttsIsGenerating = true);
+    
+      await audioPlayer.stop(); 
+
+      final currentIndex = _currentSummaryIndex + 1;
+
+      await ttsGenerator.saveTTS(currentIndex);
+
+      final storedAudio = await ttsGenerator.loadTTS(currentIndex);
+    
+      if (storedAudio != null) {
+        await audioPlayer.play(BytesSource(storedAudio));
+      } 
+
+    } catch (e){
+      print(e);
+    }
+    finally {
+      setState(() => ttsIsGenerating = false);
+    }
+  }
+
+
   
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           buildBackground(),
@@ -410,7 +452,7 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
   Widget _buildCustomBottomBar() {
     return Container(
         child: BottomNavigationBar(
-          items: const [
+          items: [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_rounded),
               label: 'Inici',
@@ -428,7 +470,7 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
               label: 'Complexitat',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.headphones),
+              icon: ttsIsGenerating ? CircularProgressIndicator(color: Colors.white) : Icon(Icons.headphones),
               label: 'Escoltar',
             ),
           ],
@@ -483,7 +525,7 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
               }
             }
             if (index == 4){
-              setState(() => _selectedIndex = index);
+              await TTSPlayback();
             }
           },
           type: BottomNavigationBarType.fixed,
@@ -713,10 +755,10 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
   }
 }
 
-  Future<void> saveImage() async {
+  Future<void> saveImage(int index) async {
     try {
-      await imageGenerator.saveImage();
-      setState(() => _currentImageIndex = 0);
+      await imageGenerator.saveImage(index);
+      setState(() => _currentImageIndex = _currentImageIndex);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error generando imágenes: $e")),
@@ -754,7 +796,12 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
                 ElevatedButton.icon(
                   onPressed: isGenerating ? null : () async {
                     setState(() => isGenerating = true);
-                    await saveImage();
+                    setState(() => _currentImageIndex = 0);
+                    await Future.wait([
+                      saveImage(0),
+                      saveImage(1),
+                      saveImage(2)
+                    ]);
                     setState(() => isGenerating = false);
                   },
                   style: ElevatedButton.styleFrom(
@@ -926,7 +973,7 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                "Vols regenerar les imatges?",
+                "Vols regenerar aquesta imatge?",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
               ),
@@ -972,9 +1019,8 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
     if (regenerate == true && mounted) {
       setState(() => isGenerating = true);
       try {
-        await saveImage();
+        await saveImage(_currentImageIndex);
         setState(() {
-          _currentImageIndex = 0;
           isGenerating = false;
         });
       }catch (e){

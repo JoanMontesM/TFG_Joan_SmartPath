@@ -45,6 +45,9 @@ dependencies:
   http: ^1.3.0
   cached_network_image: ^3.4.1
   flutter_dotenv: ^5.2.1
+  audioplayers: ^6.4.0
+  firebase_storage: ^12.4.5
+  syncfusion_flutter_charts: ^29.1.38
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +80,12 @@ flutter:
   - images/Confus.png
   - .env
   - images/Molt content.png
+  - images/molt_content_transparent.png
+  - images/rating_1.png
+  - images/rating_2.png
+  - images/rating_3.png
+  - images/rating_4.png
+  - images/rating_5.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

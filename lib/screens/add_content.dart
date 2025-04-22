@@ -137,6 +137,7 @@ class _AddContentState extends State<AddContent> {
         'summary3': summary3,
         'isValidated': false,
         'createdAt': FieldValue.serverTimestamp(),
+        'completedUsers': [],
       });
     } on FirebaseException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

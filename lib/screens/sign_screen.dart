@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smartpath_app/core/pallet.dart';
 
 enum UserRole { student, teacher }
+enum Group {grup1, grup2 }
 
 class SignScreen extends StatefulWidget {
   const SignScreen({super.key});
@@ -18,6 +19,7 @@ class _SignScreenState extends State<SignScreen> {
   final name = TextEditingController();
   final formKey = GlobalKey<FormState>();
   UserRole? selectedRole;
+  Group? selectedGroup;
   bool isLoading = false;
 
   Future<void> _registerUser() async {
@@ -46,7 +48,8 @@ class _SignScreenState extends State<SignScreen> {
           .set({
         'email': email.text.trim(),
         'name': name.text.trim(),
-        'role': selectedRole!.name
+        'role': selectedRole!.name,
+        if (selectedRole == UserRole.student) 'group': selectedGroup!.name,
       });
 
       // Navegation to screen depending on the profile
@@ -159,7 +162,8 @@ class _SignScreenState extends State<SignScreen> {
                 buildPasswordField(),
                 const SizedBox(height: 30),
                 buildRoleSelector(),
-                const SizedBox(height: 40),
+                if (selectedRole == UserRole.student) buildGroupSelector(),
+                const SizedBox(height: 20),
                 buildRegisterButton(),
                 buildLoginLink(),
               ],
@@ -220,6 +224,19 @@ class _SignScreenState extends State<SignScreen> {
           value: role,
           groupValue: selectedRole,
           onChanged: (value) => setState(() => selectedRole = value),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget buildGroupSelector(){
+    return Column(
+      children: Group.values.map((group) {
+        return RadioListTile<Group>(
+        title: Text(group.name == 'grup1' ? 'Grup1' : 'Grup2'),
+        value: group,
+        groupValue: selectedGroup,
+        onChanged: (value) => setState(() => selectedGroup = value),
         );
       }).toList(),
     );

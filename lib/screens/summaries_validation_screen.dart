@@ -758,7 +758,7 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
   Future<void> saveImage(int index) async {
     try {
       await imageGenerator.saveImage(index);
-      setState(() => _currentImageIndex = _currentImageIndex);
+      //setState(() => _currentImageIndex = _currentImageIndex);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error generando imágenes: $e")),
@@ -1089,41 +1089,3 @@ class _SummariesValidationScreenState extends State<SummariesValidationScreen> {
     );
   }
 }
-
-
-////VISUALITZACIÓ RESUMS AMB FORMAT NEGRETA (UTILITZAR EN LA PANTALLA DELS ESTUDAINTS)
-/*
-  List<TextSpan> boldText(String text){
-    final List<TextSpan> spans = [];
-  final parts = text.split('**');
-  bool isBold = false;
-
-  for (final part in parts) {
-    if (part.isEmpty) continue;
-    
-    spans.add(TextSpan(
-      text: part,
-      style: isBold 
-          ? const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)
-          : const TextStyle(color: Colors.black87),
-    ));
-
-    isBold = !isBold;
-  }
-
-  return spans;
-  }
-
-  Widget buildBoldSummary(String text){
-    return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 5),
-    child: RichText(
-      textAlign: TextAlign.center,
-      text: TextSpan(
-        style: const TextStyle(fontSize: 20, height: 1.7, color: Colors.black87),
-        children: boldText(text),
-      ),
-    ),
-  );
-  }
-  */

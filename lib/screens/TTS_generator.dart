@@ -57,7 +57,7 @@ Future<Uint8List> generateTTS(String summary) async {
             body: jsonEncode({
               "voice": "elia",
               "type": "text",
-              "text": summary.replaceAll('**','').replaceAll('(','' ).replaceAll(')','' ).replaceAll(':','' ).replaceAll(';','' ),
+              "text": summary.replaceAll('**','').replaceAll('(','' ).replaceAll(')','' ).replaceAll(':','' ).replaceAll(';','' ).replaceAll('*',''),
               "language": "ca-es"
             }),
           );

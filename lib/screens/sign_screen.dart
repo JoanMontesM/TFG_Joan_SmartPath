@@ -229,7 +229,7 @@ class _SignScreenState extends State<SignScreen> {
     );
   }
 
-  Widget buildGroupSelector(){
+  /*Widget buildGroupSelector(){
     return Column(
       children: Group.values.map((group) {
         return RadioListTile<Group>(
@@ -240,7 +240,48 @@ class _SignScreenState extends State<SignScreen> {
         );
       }).toList(),
     );
+  }*/
+  Widget buildGroupSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Escull el grup al qual pertanys:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: buildGroupButton(Group.grup1, 'Grup 1', 100)),
+            const SizedBox(width: 5),
+            Expanded(child: buildGroupButton(Group.grup2, 'Grup 2', 100)),
+          ],
+        ),
+      ],
+    );
   }
+
+  Widget buildGroupButton(Group group, String label, double buttonWidth) {
+    final isSelected = selectedGroup == group;
+    return SizedBox(
+      width: buttonWidth,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isSelected ? primaryColor : Colors.white,
+          foregroundColor: isSelected ? Colors.white : Colors.black,
+          side: const BorderSide(color: Colors.grey),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+        padding: const EdgeInsets.symmetric(vertical: 15)
+      ),
+      onPressed: () => setState(() => selectedGroup = group),
+      child: Text(label,style: const TextStyle(fontSize: 14)),
+    ),
+  );
+}
+
 
   Widget buildRegisterButton() {
     return ElevatedButton(

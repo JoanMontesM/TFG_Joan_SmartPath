@@ -1,16 +1,7 @@
-# smartpath_app
+# SmartPath: Generative AI and Universal Design for Learning to Enhance the Use of Technological Resources in Educational Settings
 
-A new Flutter project.
+This bachelor’s thesis presents the development of an educational application that integrates generative artificial intelligence to facilitate the creation of multimodal content tailored to the needs of both teachers and students. The application allows teachers to generate summaries from PDF documents, which are automatically transcribed, interpreted, and transformed into three detailed summaries. These texts can be edited and validated by the teacher, and from them, complementary multimodal content such as images, audio (text-to-speech), and simplified versions of the text are generated to ensure comprehension.
 
-## Getting Started
+To ensure the solution is truly useful and relevant, an in-depth research study was conducted with teachers and educational professionals. This research process made it possible to identify current needs and challenges related to the use of educational resources, especially regarding the creation of teaching materials that promote autonomous and inclusive learning. Based on this data, technological solutions have been designed to meet the real demands of teachers and students.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+This work demonstrates how artificial intelligence can create innovative educational alternatives that respond to a wide range of needs, extending the scope of learning beyond the classroom. The tool is scalable and adaptive, representing an important step toward educational inclusion by promoting the creation of resources that can be used by students with diverse profiles and in various contexts.

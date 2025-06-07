@@ -47,4 +47,4 @@ SmartPath aligns with the principles of Universal Design for Learning (UDL) by p
 The app supports Catalan language learning tools, fostering digital inclusion and cultural identity in educational settings.
 
 ## Credits
-Developed by Joan Montés Mora as part of a Final Degree Project in Audiovisual Systems Engineering.
+Developed by Joan Montés Mora as part of a Bachelor's Thesis in Audiovisual Systems Engineering.
